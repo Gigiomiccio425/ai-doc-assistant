@@ -20,7 +20,7 @@ services:
   app:
     # Versione pinnata: un riavvio del NAS non deve mai tirare giu' una build
     # nuova a sorpresa. Per aggiornare, cambia il tag e fai docker compose pull.
-    image: ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.0
+    image: ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.1
     container_name: ai-doc-assistant
     restart: unless-stopped
     ports:

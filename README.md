@@ -44,7 +44,7 @@ L'immagine viene costruita da GitHub Actions e pubblicata su GitHub Container
 Registry — non serve compilare nulla sul NAS:
 
 ```
-ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.0
+ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.1
 ```
 
 Il package è pubblico: nessun `docker login` necessario.
@@ -56,7 +56,7 @@ la sua voce nel [CHANGELOG](CHANGELOG.md).
 
 | Tag | Contenuto | Architetture |
 |---|---|---|
-| `1.0.0` | release stabile, immutabile — **consigliato in produzione** | amd64 + arm64 |
+| `1.0.1` | release stabile, immutabile — **consigliato in produzione** | amd64 + arm64 |
 | `1.0` | ultima patch della minor, si aggiorna da sola | amd64 + arm64 |
 | `latest` | l'ultima build in ordine di tempo: release *oppure* commit su `main` | varia |
 | `main`, `sha-<commit>` | build di sviluppo | amd64 |

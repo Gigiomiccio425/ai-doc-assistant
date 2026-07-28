@@ -26,7 +26,7 @@ name: ai-doc-assistant
 
 services:
   app:
-    image: ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.0
+    image: ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.1
     container_name: ai-doc-assistant
     restart: unless-stopped
     ports:

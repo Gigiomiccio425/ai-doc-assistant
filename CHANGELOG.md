@@ -3,10 +3,16 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 Il progetto segue il [Semantic Versioning](https://semver.org/lang/it/).
 
-## [Non rilasciato]
+## [1.0.1] - 2026-07-28
 
 ### Corretto
 
+- **La risposta della chat non compariva mai.** Il messaggio dell'assistente
+  veniva inserito in `messages` e poi mutato tramite la variabile locale, che
+  punta all'oggetto grezzo: le scritture non passavano dal proxy reattivo di
+  Alpine e non ridisegnavano nulla. I token arrivavano dal backend e finivano
+  in memoria senza mai essere mostrati, fonti comprese. Ora il riferimento
+  viene ripreso dall'array subito dopo il push.
 - **Installazione dall'App Store di ZimaOS/CasaOS.** I compose usavano
   l'interpolazione `${VAR:-default}`, che il parser dell'App Store rifiuta con
   `invalid interpolation format for services.app.volumes.[].source`. Tutti i
@@ -58,4 +64,5 @@ Prima release.
 - I PDF privi di livello di testo (scansioni) finiscono in stato `error`: serve
   un OCR a monte, non incluso.
 
+[1.0.1]: https://github.com/Gigiomiccio425/ai-doc-assistant/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Gigiomiccio425/ai-doc-assistant/releases/tag/v1.0.0

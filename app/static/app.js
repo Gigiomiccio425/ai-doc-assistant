@@ -143,8 +143,12 @@ function ragApp() {
       if (this.$refs.input) this.$refs.input.style.height = 'auto';
       this.messages.push({ role: 'user', content: question });
 
-      const answer = { role: 'assistant', content: '', sources: [], streaming: true, error: '' };
-      this.messages.push(answer);
+      // Il push memorizza l'oggetto GREZZO nell'array reattivo: mutare la
+      // variabile locale non passerebbe dal proxy e non farebbe ridisegnare
+      // nulla. Va ripreso dall'array, cosi' e' il proxy a essere mutato.
+      this.messages.push({ role: 'assistant', content: '', sources: [], streaming: true, error: '' });
+      const answer = this.messages[this.messages.length - 1];
+
       this.streaming = true;
       this.scrollDown();
 
