@@ -58,8 +58,12 @@ la sua voce nel [CHANGELOG](CHANGELOG.md).
 |---|---|---|
 | `1.0.0` | release stabile, immutabile — **consigliato in produzione** | amd64 + arm64 |
 | `1.0` | ultima patch della minor, si aggiorna da sola | amd64 + arm64 |
-| `latest` | ultimo commit su `main`, può rompersi | amd64 |
+| `latest` | l'ultima build in ordine di tempo: release *oppure* commit su `main` | varia |
 | `main`, `sha-<commit>` | build di sviluppo | amd64 |
+
+`latest` è ambiguo per costruzione — segue sia le release sia i push su `main`,
+quindi le architetture disponibili dipendono da quale delle due è arrivata per
+ultima. Su un NAS usa sempre un tag di versione.
 
 Il compose punta a un tag fisso via `APP_VERSION` nel `.env`: un riavvio del NAS
 non deve mai tirare giù una versione nuova a sorpresa. Per aggiornare:
