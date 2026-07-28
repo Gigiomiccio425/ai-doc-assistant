@@ -5,9 +5,11 @@ services:
   # App principale: Web UI + API RAG
   # ══════════════════════════════════════════════════════════════════════════
   app:
-    # Immagine costruita da GitHub Actions e pubblicata su GHCR.
-    # Per costruirla in locale: docker build -t ai-doc-assistant:local .
-    image: ghcr.io/gigiomiccio425/ai-doc-assistant:latest
+    # Versione pinnata: un aggiornamento non deve mai arrivare a sorpresa dopo
+    # un riavvio del NAS. Per aggiornare, cambia il tag e fai docker compose pull.
+    # Tag disponibili: X.Y.Z (release), X.Y, latest, main, sha-<commit>.
+    # Build locale: docker build -t ai-doc-assistant:local .
+    image: ghcr.io/gigiomiccio425/ai-doc-assistant:${APP_VERSION:-1.0.0}
     container_name: ai-doc-assistant
     restart: unless-stopped
     ports:

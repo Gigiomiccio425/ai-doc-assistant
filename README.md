@@ -40,16 +40,37 @@ ai-doc-assistant/
 
 ## Immagine pronta
 
-L'immagine viene costruita da GitHub Actions a ogni push su `main` e pubblicata su
-GitHub Container Registry — non serve compilare nulla sul NAS:
+L'immagine viene costruita da GitHub Actions e pubblicata su GitHub Container
+Registry — non serve compilare nulla sul NAS:
 
 ```
-ghcr.io/gigiomiccio425/ai-doc-assistant:latest
+ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.0
 ```
 
-`main` produce `linux/amd64` (il target di ZimaBoard / ZimaCube). I tag di
-release `v*` producono anche `linux/arm64`, che sotto emulazione QEMU richiede
-molto più tempo perché ChromaDB va compilato da sorgente.
+Il package è pubblico: nessun `docker login` necessario.
+
+### Versioni
+
+Il progetto segue il [Semantic Versioning](https://semver.org); ogni release ha
+la sua voce nel [CHANGELOG](CHANGELOG.md).
+
+| Tag | Contenuto | Architetture |
+|---|---|---|
+| `1.0.0` | release stabile, immutabile — **consigliato in produzione** | amd64 + arm64 |
+| `1.0` | ultima patch della minor, si aggiorna da sola | amd64 + arm64 |
+| `latest` | ultimo commit su `main`, può rompersi | amd64 |
+| `main`, `sha-<commit>` | build di sviluppo | amd64 |
+
+Il compose punta a un tag fisso via `APP_VERSION` nel `.env`: un riavvio del NAS
+non deve mai tirare giù una versione nuova a sorpresa. Per aggiornare:
+
+```bash
+sed -i 's/^APP_VERSION=.*/APP_VERSION=1.1.0/' .env
+docker compose pull && docker compose up -d
+```
+
+`linux/arm64` viene costruito solo sui tag di release: sotto emulazione QEMU la
+build è molto più lenta, e i target Zima (ZimaBoard, ZimaCube) sono x86.
 
 ## Installazione su Zima OS
 
