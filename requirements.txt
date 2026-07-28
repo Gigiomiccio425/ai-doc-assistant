@@ -1,0 +1,21 @@
+# --- Web layer -------------------------------------------------------------
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+jinja2==3.1.5
+pydantic==2.10.5
+httpx==0.28.1
+
+# --- RAG / parsing ---------------------------------------------------------
+langchain-core==0.3.29
+langchain-community==0.3.14
+langchain-text-splitters==0.3.5
+pypdf==5.1.0
+docx2txt==0.8
+chardet==5.2.0
+
+# --- Vector DB -------------------------------------------------------------
+chromadb==0.6.3
+
+# --- Folder sync -----------------------------------------------------------
+watchdog==6.0.0

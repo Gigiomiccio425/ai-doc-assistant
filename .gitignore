@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Dati runtime dell'app (mai committare documenti o vector DB)
+data/
+*.sqlite3
+uploads/
+chroma/
+
+# Configurazione locale
+.env
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assistente AI Documenti</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+
+  <!-- TailwindCSS via CDN. Per un NAS totalmente offline vedi la nota nel README. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            accent: { 400: '#5eead4', 500: '#2dd4bf', 600: '#14b8a6' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scroll-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+    .cite {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.15rem; height: 1.15rem; margin: 0 .12rem;
+      border-radius: .3rem; font-size: .68rem; font-weight: 700; vertical-align: super;
+      background: rgba(45, 212, 191, .16); color: #5eead4; cursor: default;
+    }
+    .bubble pre {
+      background: #0b0f17; border: 1px solid #1e293b; border-radius: .5rem;
+      padding: .7rem .9rem; margin: .5rem 0; overflow-x: auto; font-size: .82rem;
+    }
+    .bubble code { background: rgba(148,163,184,.16); border-radius: .3rem; padding: .05rem .3rem; font-size: .85em; }
+    .typing::after { content: '▍'; animation: blink 1s steps(2) infinite; color: #2dd4bf; }
+    @keyframes blink { 50% { opacity: 0 } }
+  </style>
+
+  <script src="/static/app.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+</head>
+
+<body class="h-full bg-slate-950 text-slate-200 antialiased">
+<div x-data="ragApp()" x-init="boot()" class="h-full flex flex-col">
+
+  <!-- ══════════════ HEADER ══════════════ -->
+  <header class="flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-900/70 backdrop-blur">
+    <button @click="sidebar = !sidebar" class="lg:hidden p-2 rounded-lg hover:bg-slate-800" aria-label="Menu">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+
+    <img src="/static/icon.svg" alt="" class="w-8 h-8">
+    <div class="min-w-0">
+      <h1 class="font-semibold leading-tight truncate">Assistente AI Documenti</h1>
+      <p class="text-xs text-slate-500 leading-tight">RAG locale · nessun dato esce dal NAS</p>
+    </div>
+
+    <div class="ml-auto flex items-center gap-3 text-xs">
+      <span class="hidden sm:inline px-2 py-1 rounded-md bg-slate-800 text-slate-300 font-mono"
+            x-text="status.ollama?.llm_model || '—'"></span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full"
+              :class="status.ollama?.online ? 'bg-emerald-400' : 'bg-rose-500'"></span>
+        <span class="text-slate-400" x-text="status.ollama?.online ? 'Ollama online' : 'Ollama offline'"></span>
+      </span>
+    </div>
+  </header>
+
+  <div class="flex-1 flex min-h-0">
+
+    <!-- ══════════════ SIDEBAR ══════════════ -->
+    <aside class="fixed lg:static inset-y-0 left-0 z-30 w-[22rem] max-w-[88vw] shrink-0 flex flex-col
+                  bg-slate-900 border-r border-slate-800 transition-transform lg:translate-x-0"
+           :class="sidebar ? 'translate-x-0' : '-translate-x-full'">
+
+      <div class="flex border-b border-slate-800">
+        <template x-for="t in [['docs','Documenti'],['settings','Impostazioni']]" :key="t[0]">
+          <button @click="tab = t[0]"
+                  class="flex-1 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition"
+                  :class="tab === t[0] ? 'border-accent-500 text-accent-400' : 'border-transparent text-slate-400 hover:text-slate-200'"
+                  x-text="t[1]"></button>
+        </template>
+      </div>
+
+      <!-- ─── Tab Documenti ─── -->
+      <div x-show="tab === 'docs'" class="flex-1 flex flex-col min-h-0">
+
+        <div class="p-4 space-y-3 border-b border-slate-800">
+          <!-- Dropzone -->
+          <label @dragover.prevent="drag = true" @dragleave="drag = false"
+                 @drop.prevent="drag = false; uploadFiles($event.dataTransfer.files)"
+                 class="block cursor-pointer rounded-xl border-2 border-dashed p-4 text-center transition"
+                 :class="drag ? 'border-accent-500 bg-accent-500/5' : 'border-slate-700 hover:border-slate-600'">
+            <input type="file" multiple class="hidden" accept=".pdf,.txt,.md,.docx,.csv,.log,.json"
+                   @change="uploadFiles($event.target.files); $event.target.value = ''">
+            <svg class="w-6 h-6 mx-auto mb-1.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+              <path d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+            </svg>
+            <p class="text-sm text-slate-300">Trascina i file o <span class="text-accent-400">sfoglia</span></p>
+            <p class="text-[11px] text-slate-500 mt-0.5">PDF · DOCX · TXT · MD · CSV</p>
+          </label>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button @click="scanFolder()" :disabled="busy"
+                    class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm disabled:opacity-40">
+              Scansiona NAS
+            </button>
+            <button @click="reindexAll()" :disabled="busy"
+                    class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm disabled:opacity-40">
+              Reindicizza tutto
+            </button>
+          </div>
+
+          <!-- Stato ingestione -->
+          <div class="text-[11px] text-slate-500 space-y-1">
+            <div class="flex justify-between">
+              <span x-text="`${status.index?.total ?? 0} documenti · ${status.index?.vectors ?? 0} chunk`"></span>
+              <span x-show="status.ingest?.queued" x-text="`${status.ingest.queued} in coda`"></span>
+            </div>
+            <div x-show="status.ingest?.running" x-cloak class="flex items-center gap-2 text-accent-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-accent-400 animate-ping"></span>
+              <span class="truncate" x-text="'Indicizzo: ' + status.ingest.current"></span>
+            </div>
+            <p x-show="status.index?.stale_embeddings" x-cloak class="text-amber-400">
+              Modello di embedding cambiato: reindicizza tutto.
+            </p>
+          </div>
+        </div>
+
+        <!-- Lista documenti -->
+        <div class="flex-1 overflow-y-auto scroll-thin p-2 space-y-1.5">
+          <p x-show="!docs.length" class="text-center text-sm text-slate-600 py-8">Nessun documento indicizzato.</p>
+          <template x-for="d in docs" :key="d.id">
+            <div class="group rounded-lg bg-slate-800/50 hover:bg-slate-800 p-2.5">
+              <div class="flex items-start gap-2">
+                <span class="mt-1 w-2 h-2 rounded-full shrink-0"
+                      :class="{'bg-emerald-400': d.status==='indexed', 'bg-amber-400 animate-pulse': d.status==='indexing',
+                               'bg-slate-500': d.status==='pending', 'bg-rose-500': d.status==='error'}"></span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm truncate" :title="d.path" x-text="d.name"></p>
+                  <p class="text-[11px] text-slate-500"
+                     x-text="`${d.origin === 'upload' ? 'caricato' : 'NAS'} · ${fmtSize(d.size)} · ${d.chunks} chunk`"></p>
+                  <p x-show="d.error" x-cloak class="text-[11px] text-rose-400 mt-0.5 break-words" x-text="d.error"></p>
+                </div>
+                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <button @click="reindexDoc(d.id)" title="Reindicizza" class="p-1 rounded hover:bg-slate-700">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path d="M4 4v6h6M20 20v-6h-6M20 9a8 8 0 00-14.9-2M4 15a8 8 0 0014.9 2"/>
+                    </svg>
+                  </button>
+                  <button @click="removeDoc(d)" title="Elimina dall'indice" class="p-1 rounded hover:bg-rose-500/20">
+                    <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path d="M6 7h12M9 7V5h6v2m-8 0l1 13h8l1-13"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ─── Tab Impostazioni ─── -->
+      <form x-show="tab === 'settings'" x-cloak @submit.prevent="saveSettings()"
+            class="flex-1 overflow-y-auto scroll-thin p-4 space-y-4 text-sm">
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">URL Ollama</label>
+          <input x-model="settings.ollama_url" placeholder="http://ollama:11434"
+                 class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:border-accent-500 outline-none font-mono text-xs">
+          <button type="button" @click="loadModels()" class="mt-1.5 text-xs text-accent-400 hover:underline">
+            Rileva modelli disponibili
+          </button>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Modello LLM (risposta)</label>
+          <input x-model="settings.llm_model" list="model-list"
+                 class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:border-accent-500 outline-none font-mono text-xs">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Modello embedding</label>
+          <input x-model="settings.embed_model" list="model-list"
+                 class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:border-accent-500 outline-none font-mono text-xs">
+          <p class="text-[11px] text-amber-500/80 mt-1">Cambiarlo azzera l'indice e riavvia l'indicizzazione.</p>
+        </div>
+
+        <datalist id="model-list">
+          <template x-for="m in models" :key="m"><option :value="m"></option></template>
+        </datalist>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Chunk (caratteri)</label>
+            <input type="number" x-model.number="settings.chunk_size" min="200" max="8000"
+                   class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Overlap</label>
+            <input type="number" x-model.number="settings.chunk_overlap" min="0" max="2000"
+                   class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Fonti per risposta (top-k)</label>
+            <input type="number" x-model.number="settings.top_k" min="1" max="20"
+                   class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Temperatura</label>
+            <input type="number" step="0.1" x-model.number="settings.temperature" min="0" max="2"
+                   class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">System prompt</label>
+          <textarea x-model="settings.system_prompt" rows="7"
+                    class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 outline-none text-xs leading-relaxed"></textarea>
+        </div>
+
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" x-model="settings.watch_enabled" class="rounded bg-slate-800 border-slate-600 text-accent-600">
+          <span class="text-xs">Monitora la cartella NAS in tempo reale</span>
+        </label>
+
+        <button type="submit" :disabled="busy"
+                class="w-full py-2.5 rounded-lg bg-accent-600 hover:bg-accent-500 text-slate-950 font-semibold disabled:opacity-40">
+          Salva impostazioni
+        </button>
+        <p class="text-[11px] text-slate-600" x-text="'Cartella monitorata: ' + (status.watch?.folder || '')"></p>
+      </form>
+    </aside>
+
+    <div x-show="sidebar" x-cloak @click="sidebar = false" class="lg:hidden fixed inset-0 z-20 bg-black/60"></div>
+
+    <!-- ══════════════ CHAT ══════════════ -->
+    <main class="flex-1 flex flex-col min-w-0">
+
+      <div x-ref="scroll" class="flex-1 overflow-y-auto scroll-thin px-4 py-6">
+        <div class="max-w-3xl mx-auto space-y-6">
+
+          <!-- Schermata iniziale -->
+          <div x-show="!messages.length" x-cloak class="text-center pt-10">
+            <img src="/static/icon.svg" alt="" class="w-14 h-14 mx-auto mb-4 opacity-80">
+            <h2 class="text-xl font-semibold">Interroga i tuoi documenti</h2>
+            <p class="text-sm text-slate-500 mt-1">Tutto resta sul NAS: nessuna chiamata a servizi esterni.</p>
+            <div class="grid sm:grid-cols-2 gap-2 mt-6 text-left">
+              <template x-for="s in samples" :key="s">
+                <button @click="input = s; send()"
+                        class="px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-accent-600 text-sm text-slate-300 transition"
+                        x-text="s"></button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Messaggi -->
+          <template x-for="(m, i) in messages" :key="i">
+            <div :class="m.role === 'user' ? 'flex justify-end' : ''">
+
+              <!-- utente -->
+              <div x-show="m.role === 'user'"
+                   class="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-br-md bg-accent-600 text-slate-950 font-medium whitespace-pre-wrap"
+                   x-text="m.content"></div>
+
+              <!-- assistente -->
+              <div x-show="m.role === 'assistant'" class="space-y-3">
+                <div class="bubble leading-relaxed text-slate-200"
+                     :class="m.streaming && !m.content ? 'typing' : ''"
+                     x-html="renderMarkdown(m.content)"></div>
+
+                <div x-show="m.error" x-cloak
+                     class="px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm"
+                     x-text="m.error"></div>
+
+                <!-- Fonti -->
+                <div x-show="m.sources && m.sources.length" x-cloak class="space-y-1.5">
+                  <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Fonti</p>
+                  <template x-for="s in m.sources" :key="s.n">
+                    <details class="group rounded-lg bg-slate-900 border border-slate-800 open:border-slate-700">
+                      <summary class="flex items-center gap-2 px-3 py-2 cursor-pointer list-none">
+                        <span class="cite" x-text="s.n"></span>
+                        <span class="text-sm truncate flex-1" x-text="s.label"></span>
+                        <span class="text-[11px] text-slate-500" x-text="'sim. ' + s.score"></span>
+                      </summary>
+                      <p class="px-3 pb-3 text-xs text-slate-400 leading-relaxed" x-text="s.snippet + '…'"></p>
+                    </details>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="border-t border-slate-800 bg-slate-900/70 backdrop-blur px-4 py-3">
+        <div class="max-w-3xl mx-auto">
+          <div class="flex items-end gap-2 rounded-2xl bg-slate-800 border border-slate-700 focus-within:border-accent-600 px-3 py-2">
+            <textarea x-model="input" x-ref="input" rows="1" placeholder="Chiedi qualcosa ai tuoi documenti…"
+                      @input="autoGrow($event.target)"
+                      @keydown.enter.prevent="if (!$event.shiftKey) send(); else input += '\n'"
+                      class="flex-1 bg-transparent resize-none outline-none max-h-40 py-1.5 text-sm scroll-thin"></textarea>
+
+            <button x-show="!streaming" @click="send()" :disabled="!input.trim()"
+                    class="p-2 rounded-xl bg-accent-600 hover:bg-accent-500 disabled:opacity-30 text-slate-950 transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+            <button x-show="streaming" x-cloak @click="stop()" class="p-2 rounded-xl bg-rose-600 hover:bg-rose-500 transition">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>
+            </button>
+          </div>
+          <div class="flex justify-between mt-1.5 px-1 text-[11px] text-slate-600">
+            <span>Invio per inviare · Shift+Invio per andare a capo</span>
+            <button @click="messages = []" x-show="messages.length" class="hover:text-slate-400">Nuova conversazione</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div x-show="toast" x-cloak x-transition
+       class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 shadow-xl text-sm"
+       x-text="toast"></div>
+</div>
+</body>
+</html>

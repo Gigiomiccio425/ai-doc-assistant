@@ -1,0 +1,182 @@
+name: ai-doc-assistant
+
+services:
+  # ══════════════════════════════════════════════════════════════════════════
+  # App principale: Web UI + API RAG
+  # ══════════════════════════════════════════════════════════════════════════
+  app:
+    # Immagine costruita da GitHub Actions e pubblicata su GHCR.
+    # Per costruirla in locale: docker build -t ai-doc-assistant:local .
+    image: ghcr.io/gigiomiccio425/ai-doc-assistant:latest
+    container_name: ai-doc-assistant
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-8088}:8000"
+    environment:
+      OLLAMA_URL: "${OLLAMA_URL:-http://ollama:11434}"
+      LLM_MODEL: "${LLM_MODEL:-llama3.2}"
+      EMBED_MODEL: "${EMBED_MODEL:-nomic-embed-text}"
+      SCAN_ON_START: "${SCAN_ON_START:-true}"
+      DATA_DIR: /data
+      DOCS_DIR: /documents
+      TZ: "${TZ:-Europe/Rome}"
+    volumes:
+      # Cartella del NAS da indicizzare. :ro = l'app non puo' toccare i tuoi file.
+      - ${DOCUMENTS_PATH:-/DATA/Documents}:/documents:ro
+      # Persistenza: ChromaDB, anagrafica SQLite, impostazioni, file caricati dalla UI.
+      - ${APPDATA_PATH:-/DATA/AppData/ai-doc-assistant}/data:/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - ai-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+    x-casaos:
+      envs:
+        - container: OLLAMA_URL
+          description:
+            en_us: "Ollama endpoint. Use http://ollama:11434 for the bundled container."
+            it_it: "Endpoint di Ollama. Usa http://ollama:11434 per il container incluso."
+        - container: LLM_MODEL
+          description:
+            en_us: "Chat model (llama3.2, mistral, phi3, qwen2.5 ...)"
+            it_it: "Modello per le risposte (llama3.2, mistral, phi3, qwen2.5 ...)"
+        - container: EMBED_MODEL
+          description:
+            en_us: "Embedding model (nomic-embed-text, bge-m3)"
+            it_it: "Modello di embedding (nomic-embed-text, bge-m3)"
+        - container: SCAN_ON_START
+          description:
+            en_us: "Scan the documents folder at startup"
+            it_it: "Scansiona la cartella documenti all'avvio"
+      ports:
+        - container: "8000"
+          description:
+            en_us: "Web UI / API port"
+            it_it: "Porta della Web UI e delle API"
+      volumes:
+        - container: /documents
+          description:
+            en_us: "NAS folder to index (read-only)"
+            it_it: "Cartella del NAS da indicizzare (sola lettura)"
+        - container: /data
+          description:
+            en_us: "Vector DB, registry and uploaded files"
+            it_it: "Vector DB, anagrafica e file caricati"
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Motore LLM. Se hai GIA' Ollama su Zima OS: cancella questo servizio,
+  # togli il blocco depends_on qui sopra e imposta
+  #   OLLAMA_URL=http://<ip-del-nas>:11434
+  # ══════════════════════════════════════════════════════════════════════════
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-doc-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: "15m"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    volumes:
+      - ${APPDATA_PATH:-/DATA/AppData/ai-doc-assistant}/ollama:/root/.ollama
+    networks:
+      - ai-net
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    # --- GPU NVIDIA: scommentare se disponibile sul tuo Zima -----------------
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+    x-casaos:
+      ports:
+        - container: "11434"
+          description:
+            en_us: "Ollama API port"
+            it_it: "Porta API di Ollama"
+      volumes:
+        - container: /root/.ollama
+          description:
+            en_us: "Downloaded models"
+            it_it: "Modelli scaricati"
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Scarica i modelli al primo avvio, poi esce. Non riparte da solo.
+  # ══════════════════════════════════════════════════════════════════════════
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ai-doc-ollama-pull
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: "http://ollama:11434"
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "ollama pull ${LLM_MODEL:-llama3.2} && ollama pull ${EMBED_MODEL:-nomic-embed-text}"
+    networks:
+      - ai-net
+
+networks:
+  ai-net:
+    driver: bridge
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Metadati Zima OS / CasaOS: icona, titolo, categoria e link nella dashboard.
+# ══════════════════════════════════════════════════════════════════════════════
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: app
+  author: self
+  developer: self
+  category: AI
+  hostname: ""
+  icon: https://raw.githubusercontent.com/selfhst/icons/main/png/ollama.png
+  thumbnail: ""
+  screenshot_link: []
+  title:
+    en_us: AI Document Assistant
+    it_it: Assistente AI Documenti
+  tagline:
+    en_us: Ask questions to your own documents, fully offline
+    it_it: Fai domande ai tuoi documenti, tutto in locale
+  description:
+    en_us: >-
+      Private RAG assistant for your NAS. Indexes PDF, DOCX, TXT and Markdown
+      files with ChromaDB and answers in natural language through a local Ollama
+      model, always citing the source document and page. No data ever leaves
+      your device.
+    it_it: >-
+      Assistente RAG privato per il tuo NAS. Indicizza PDF, DOCX, TXT e Markdown
+      con ChromaDB e risponde in linguaggio naturale tramite un modello Ollama
+      locale, citando sempre documento e pagina di origine. Nessun dato lascia
+      il dispositivo.
+  index: /
+  port_map: "8088"
+  scheme: http
+  tips:
+    before_install:
+      en_us: >-
+        Set DOCUMENTS_PATH to the folder you want to index (default /DATA/Documents).
+        The first startup downloads the models: it may take several minutes.
+      it_it: >-
+        Imposta DOCUMENTS_PATH sulla cartella da indicizzare (default /DATA/Documents).
+        Al primo avvio vengono scaricati i modelli: puo' richiedere diversi minuti.

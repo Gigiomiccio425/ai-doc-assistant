@@ -1,0 +1,11 @@
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/
+*.sqlite3
+.env
+README.md
+docker-compose.yml

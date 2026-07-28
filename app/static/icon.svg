@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#134e4a"/>
+      <stop offset="1" stop-color="#0b0f17"/>
+    </linearGradient>
+    <linearGradient id="fg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <!-- foglio -->
+  <path d="M38 26h34l20 20v40a8 8 0 0 1-8 8H38a8 8 0 0 1-8-8V34a8 8 0 0 1 8-8z"
+        fill="#0b0f17" stroke="url(#fg)" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M72 26v14a6 6 0 0 0 6 6h14" fill="none" stroke="url(#fg)" stroke-width="5" stroke-linejoin="round"/>
+  <g stroke="#5eead4" stroke-width="5" stroke-linecap="round" opacity=".55">
+    <path d="M44 60h26"/><path d="M44 72h34"/>
+  </g>
+
+  <!-- fumetto chat -->
+  <path d="M62 74h34a10 10 0 0 1 10 10v14a10 10 0 0 1-10 10H80l-12 10v-10h-6a10 10 0 0 1-10-10V84a10 10 0 0 1 10-10z"
+        fill="url(#fg)" stroke="#0b0f17" stroke-width="5" stroke-linejoin="round"/>
+  <g fill="#0b0f17">
+    <circle cx="72" cy="91" r="4"/><circle cx="85" cy="91" r="4"/><circle cx="98" cy="91" r="4"/>
+  </g>
+</svg>
