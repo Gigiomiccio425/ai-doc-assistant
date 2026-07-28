@@ -22,8 +22,10 @@ jobs:
       # restare con valori letterali.
       - name: No variable interpolation
         run: |
-          if grep -n '\${' docker-compose*.yml; then
-            echo "::error::Trovata interpolazione \${...}: ZimaOS/CasaOS non la supporta, usa valori letterali"
+          # ^[^#]* esclude le righe di commento, dove la sintassi e' citata
+          # apposta per spiegare perche' non va usata.
+          if grep -n '^[^#]*\${' docker-compose*.yml; then
+            echo "::error::Trovata interpolazione di variabile: ZimaOS/CasaOS non la supporta, usa valori letterali"
             exit 1
           fi
           echo "OK: nessuna interpolazione"
