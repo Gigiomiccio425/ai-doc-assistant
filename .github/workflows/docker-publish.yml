@@ -4,8 +4,15 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-    # Una modifica alla sola documentazione non giustifica una build.
-    paths-ignore: ["**.md", "LICENSE", ".gitignore", ".gitattributes"]
+    # Documentazione e file di deploy non finiscono nell'immagine
+    # (vedi .dockerignore): modificarli non giustifica una build.
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+      - ".gitattributes"
+      - "docker-compose*.yml"
+      - ".env.example"
   pull_request:
     branches: [main]
   workflow_dispatch:

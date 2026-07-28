@@ -17,7 +17,8 @@ embedding, ricerca vettoriale e generazione avvengono tutti dentro la tua rete.
 ai-doc-assistant/
 ├── .github/workflows/
 │   └── docker-publish.yml   # CI: import check + build multi-arch su GHCR
-├── docker-compose.yml       # servizi + metadati x-casaos
+├── docker-compose.yml       # app + Ollama incluso, metadati x-casaos
+├── docker-compose.external-ollama.yml   # solo app, per Ollama gia' presente
 ├── Dockerfile               # build multi-stage
 ├── requirements.txt
 ├── .env.example             # percorsi NAS, porte, modelli
@@ -116,15 +117,44 @@ Zima OS legge i blocchi `x-casaos`. Due strade:
 
 ### Se Ollama è già installato
 
-Cancella i servizi `ollama` e `ollama-pull` dal compose, rimuovi il blocco
-`depends_on` del servizio `app` e imposta in `.env`:
+Usa il secondo compose: avvia solo l'app, senza scaricare di nuovo i modelli né
+contendere la GPU.
 
-```
-OLLAMA_URL=http://<ip-del-nas>:11434
+```bash
+docker compose -f docker-compose.external-ollama.yml up -d
 ```
 
-Ollama deve ascoltare su tutte le interfacce (`OLLAMA_HOST=0.0.0.0`), altrimenti
-il container non lo raggiunge.
+Il default `OLLAMA_URL=http://host.docker.internal:11434` funziona sia con
+Ollama nativo sull'host sia con Ollama in un container che pubblica la porta
+11434 — l'`extra_hosts: host-gateway` nel compose fa risolvere quel nome
+all'host anche su Linux. In alternativa metti l'IP del NAS nel `.env`.
+
+**Ollama deve ascoltare su `0.0.0.0`**, non solo su `127.0.0.1`, altrimenti dal
+container non è raggiungibile. Verifica dall'host:
+
+```bash
+curl http://127.0.0.1:11434/api/version
+```
+
+Se è un servizio systemd:
+
+```bash
+sudo systemctl edit ollama
+# [Service]
+# Environment="OLLAMA_HOST=0.0.0.0"
+sudo systemctl restart ollama
+```
+
+I modelli devono essere già scaricati — qui non c'è il servizio `ollama-pull`:
+
+```bash
+ollama pull llama3.2
+ollama pull nomic-embed-text
+```
+
+Se il tuo Ollama gira in un container che **non** pubblica la porta, nel compose
+c'è un blocco commentato per collegare l'app alla sua rete e usare il nome del
+container come host.
 
 ---
 
@@ -149,6 +179,12 @@ il container non lo raggiunge.
 diversi e dimensioni diverse: i vettori vecchi diventano inconfrontabili. L'app
 se ne accorge, azzera la collezione e riaccoda tutti i documenti. Con centinaia
 di PDF l'operazione richiede tempo.
+
+**Le variabili d'ambiente valgono solo al primo avvio.** `OLLAMA_URL`,
+`LLM_MODEL` ed `EMBED_MODEL` sono i valori iniziali: appena salvi qualcosa dalle
+impostazioni della UI, l'app scrive `/data/settings.json` e da quel momento è
+quel file a comandare. Se cambi la variabile nel `.env` e non vedi effetto,
+modificala dalla UI oppure cancella `settings.json` e riavvia il container.
 
 **PDF scansionati.** Senza livello di testo non si estrae nulla: il documento
 finisce in stato `error` con la relativa nota. Serve un OCR a monte (per esempio

@@ -1,0 +1,133 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Variante per chi ha GIA' Ollama sul NAS (installazione nativa o container).
+# Avvia solo l'app: nessun modello viene scaricato di nuovo, nessuna GPU da
+# riassegnare, niente doppia copia dei pesi su disco.
+#
+#   docker compose -f docker-compose.external-ollama.yml up -d
+#
+# Requisito: Ollama deve ascoltare su 0.0.0.0, non solo su 127.0.0.1.
+# Verifica dall'host:  curl http://127.0.0.1:11434/api/version
+# ══════════════════════════════════════════════════════════════════════════════
+
+name: ai-doc-assistant
+
+services:
+  app:
+    image: ghcr.io/gigiomiccio425/ai-doc-assistant:${APP_VERSION:-1.0.0}
+    container_name: ai-doc-assistant
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-8088}:8000"
+    environment:
+      # host.docker.internal viene risolto dall'extra_hosts qui sotto e punta
+      # all'host Zima: funziona sia con Ollama nativo sia con Ollama in un
+      # container che pubblica la porta 11434.
+      OLLAMA_URL: "${OLLAMA_URL:-http://host.docker.internal:11434}"
+      LLM_MODEL: "${LLM_MODEL:-llama3.2}"
+      EMBED_MODEL: "${EMBED_MODEL:-nomic-embed-text}"
+      SCAN_ON_START: "${SCAN_ON_START:-true}"
+      DATA_DIR: /data
+      DOCS_DIR: /documents
+      TZ: "${TZ:-Europe/Rome}"
+    extra_hosts:
+      # Su Linux host.docker.internal non esiste di default: host-gateway lo
+      # mappa sull'IP del gateway Docker.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Cartella del NAS da indicizzare. :ro = l'app non puo' toccare i tuoi file.
+      - ${DOCUMENTS_PATH:-/DATA/Documents}:/documents:ro
+      # Persistenza: ChromaDB, anagrafica SQLite, impostazioni, file caricati.
+      - ${APPDATA_PATH:-/DATA/AppData/ai-doc-assistant}/data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+    # --- Alternativa: Ollama gira in un container che NON pubblica la porta ---
+    # Collega l'app alla rete di quel container e usa il suo nome come host:
+    #   OLLAMA_URL=http://<nome-container-ollama>:11434
+    # networks:
+    #   - ollama-net
+    #
+    # networks:
+    #   ollama-net:
+    #     external: true
+    #     name: <nome-della-rete-esistente>
+
+    x-casaos:
+      envs:
+        - container: OLLAMA_URL
+          description:
+            en_us: "URL of your existing Ollama instance"
+            it_it: "URL della tua istanza Ollama gia' attiva"
+        - container: LLM_MODEL
+          description:
+            en_us: "Chat model, must be already pulled in Ollama"
+            it_it: "Modello per le risposte, gia' scaricato in Ollama"
+        - container: EMBED_MODEL
+          description:
+            en_us: "Embedding model, must be already pulled in Ollama"
+            it_it: "Modello di embedding, gia' scaricato in Ollama"
+        - container: SCAN_ON_START
+          description:
+            en_us: "Scan the documents folder at startup"
+            it_it: "Scansiona la cartella documenti all'avvio"
+      ports:
+        - container: "8000"
+          description:
+            en_us: "Web UI / API port"
+            it_it: "Porta della Web UI e delle API"
+      volumes:
+        - container: /documents
+          description:
+            en_us: "NAS folder to index (read-only)"
+            it_it: "Cartella del NAS da indicizzare (sola lettura)"
+        - container: /data
+          description:
+            en_us: "Vector DB, registry and uploaded files"
+            it_it: "Vector DB, anagrafica e file caricati"
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: app
+  author: self
+  developer: self
+  category: AI
+  hostname: ""
+  icon: https://raw.githubusercontent.com/selfhst/icons/main/png/ollama.png
+  thumbnail: ""
+  screenshot_link: []
+  title:
+    en_us: AI Document Assistant
+    it_it: Assistente AI Documenti
+  tagline:
+    en_us: Ask questions to your own documents, fully offline
+    it_it: Fai domande ai tuoi documenti, tutto in locale
+  description:
+    en_us: >-
+      Private RAG assistant for your NAS. Indexes PDF, DOCX, TXT and Markdown
+      files with ChromaDB and answers in natural language through your existing
+      Ollama instance, always citing the source document and page. No data ever
+      leaves your device. This variant does NOT bundle Ollama.
+    it_it: >-
+      Assistente RAG privato per il tuo NAS. Indicizza PDF, DOCX, TXT e Markdown
+      con ChromaDB e risponde in linguaggio naturale usando la tua istanza Ollama
+      gia' esistente, citando sempre documento e pagina di origine. Nessun dato
+      lascia il dispositivo. Questa variante NON include Ollama.
+  index: /
+  port_map: "8088"
+  scheme: http
+  tips:
+    before_install:
+      en_us: >-
+        Requires a running Ollama instance listening on 0.0.0.0 with the chat
+        and embedding models already pulled. Set DOCUMENTS_PATH to the folder
+        you want to index.
+      it_it: >-
+        Richiede un'istanza Ollama gia' attiva in ascolto su 0.0.0.0, con i
+        modelli di chat ed embedding gia' scaricati. Imposta DOCUMENTS_PATH
+        sulla cartella da indicizzare.

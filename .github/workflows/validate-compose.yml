@@ -1,0 +1,60 @@
+name: Validate compose files
+
+# Il workflow di build ignora i file di deploy (non entrano nell'immagine):
+# la loro validazione vive qui, ed e' questione di secondi.
+on:
+  push:
+    branches: [main]
+    paths: ["docker-compose*.yml", ".env.example", ".github/workflows/validate-compose.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["docker-compose*.yml", ".env.example", ".github/workflows/validate-compose.yml"]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docker compose config
+        run: |
+          for file in docker-compose*.yml; do
+            echo "::group::$file"
+            docker compose -f "$file" config --quiet && echo "OK: $file"
+            echo "::endgroup::"
+          done
+
+      # I metadati x-casaos sono estensioni: compose li accetta senza guardarli.
+      # Qui si controlla che i campi che Zima OS usa per la dashboard esistano.
+      - name: Check x-casaos metadata
+        run: |
+          python - <<'PY'
+          import glob, sys, yaml
+
+          required = ["main", "icon", "title", "description", "index", "port_map", "scheme"]
+          failed = False
+
+          for path in sorted(glob.glob("docker-compose*.yml")):
+              data = yaml.safe_load(open(path, encoding="utf-8"))
+              meta = data.get("x-casaos")
+              if not meta:
+                  print(f"FAIL {path}: blocco x-casaos assente")
+                  failed = True
+                  continue
+
+              missing = [k for k in required if not meta.get(k)]
+              if missing:
+                  print(f"FAIL {path}: campi x-casaos mancanti: {missing}")
+                  failed = True
+
+              main_service = meta.get("main")
+              if main_service and main_service not in data.get("services", {}):
+                  print(f"FAIL {path}: main '{main_service}' non e' un servizio definito")
+                  failed = True
+
+              if not failed:
+                  print(f"OK   {path}")
+
+          sys.exit(1 if failed else 0)
+          PY
