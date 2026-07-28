@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # Una modifica alla sola documentazione non giustifica una build.
+    paths-ignore: ["**.md", "LICENSE", ".gitignore", ".gitattributes"]
   pull_request:
     branches: [main]
   workflow_dispatch:

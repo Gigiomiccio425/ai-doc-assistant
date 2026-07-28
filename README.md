@@ -76,10 +76,7 @@ molto più tempo perché ChromaDB va compilato da sorgente.
 
 4. Apri `http://<ip-del-nas>:8088`.
 
-> **Primo pull.** I package GHCR nascono privati anche quando il repository è
-> pubblico. Se ricevi `denied` o `unauthorized`, apri
-> *github.com/users/Gigiomiccio425/packages/container/ai-doc-assistant/settings*
-> e imposta la visibilità su **Public** (una volta sola).
+Il package è pubblico: nessun `docker login` necessario sul NAS.
 
 ### Farla comparire nella dashboard Zima
 
