@@ -5,10 +5,10 @@ name: Validate compose files
 on:
   push:
     branches: [main]
-    paths: ["docker-compose*.yml", ".env.example", ".github/workflows/validate-compose.yml"]
+    paths: ["docker-compose*.yml", ".github/workflows/validate-compose.yml"]
   pull_request:
     branches: [main]
-    paths: ["docker-compose*.yml", ".env.example", ".github/workflows/validate-compose.yml"]
+    paths: ["docker-compose*.yml", ".github/workflows/validate-compose.yml"]
   workflow_dispatch:
 
 jobs:
@@ -16,6 +16,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Il parser dell'App Store di ZimaOS/CasaOS non supporta l'interpolazione
+      # e rifiuta il file con "invalid interpolation format". I compose devono
+      # restare con valori letterali.
+      - name: No variable interpolation
+        run: |
+          if grep -n '\${' docker-compose*.yml; then
+            echo "::error::Trovata interpolazione \${...}: ZimaOS/CasaOS non la supporta, usa valori letterali"
+            exit 1
+          fi
+          echo "OK: nessuna interpolazione"
 
       - name: docker compose config
         run: |

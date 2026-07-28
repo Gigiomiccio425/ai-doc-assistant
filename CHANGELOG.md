@@ -3,6 +3,21 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 Il progetto segue il [Semantic Versioning](https://semver.org/lang/it/).
 
+## [Non rilasciato]
+
+### Corretto
+
+- **Installazione dall'App Store di ZimaOS/CasaOS.** I compose usavano
+  l'interpolazione `${VAR:-default}`, che il parser dell'App Store rifiuta con
+  `invalid interpolation format for services.app.volumes.[].source`. Tutti i
+  valori sono ora letterali. Rimosso `.env.example`, che non serve più.
+- Aggiunta una variante `docker-compose.external-ollama.yml` per chi ha già
+  Ollama installato sul NAS.
+- La CI ora valida i compose (`docker compose config`, campi `x-casaos`) e
+  fallisce se ricompare un `${` in quei file.
+
+L'immagine Docker non cambia: i compose non ne fanno parte.
+
 ## [1.0.0] - 2026-07-28
 
 Prima release.

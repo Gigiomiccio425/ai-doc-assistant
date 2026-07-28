@@ -12,7 +12,6 @@ on:
       - ".gitignore"
       - ".gitattributes"
       - "docker-compose*.yml"
-      - ".env.example"
   pull_request:
     branches: [main]
   workflow_dispatch:

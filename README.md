@@ -21,7 +21,6 @@ ai-doc-assistant/
 ├── docker-compose.external-ollama.yml   # solo app, per Ollama gia' presente
 ├── Dockerfile               # build multi-stage
 ├── requirements.txt
-├── .env.example             # percorsi NAS, porte, modelli
 ├── .dockerignore
 └── app/
     ├── main.py              # FastAPI: rotte, SSE, lifespan
@@ -66,54 +65,57 @@ la sua voce nel [CHANGELOG](CHANGELOG.md).
 quindi le architetture disponibili dipendono da quale delle due è arrivata per
 ultima. Su un NAS usa sempre un tag di versione.
 
-Il compose punta a un tag fisso via `APP_VERSION` nel `.env`: un riavvio del NAS
-non deve mai tirare giù una versione nuova a sorpresa. Per aggiornare:
-
-```bash
-sed -i 's/^APP_VERSION=.*/APP_VERSION=1.1.0/' .env
-docker compose pull && docker compose up -d
-```
+Il compose punta a un tag fisso: un riavvio del NAS non deve mai tirare giù una
+versione nuova a sorpresa. Per aggiornare, cambia il tag nella riga `image:` e
+fai `docker compose pull && docker compose up -d`.
 
 `linux/arm64` viene costruito solo sui tag di release: sotto emulazione QEMU la
 build è molto più lenta, e i target Zima (ZimaBoard, ZimaCube) sono x86.
 
 ## Installazione su Zima OS
 
-1. Copia la cartella sul NAS, per esempio in `/DATA/AppData/ai-doc-assistant/src`
-   (oppure `git clone https://github.com/Gigiomiccio425/ai-doc-assistant.git`).
-2. Prepara la configurazione:
+Scegli il compose:
 
-   ```bash
-   cd ai-doc-assistant
-   cp .env.example .env
-   nano .env          # imposta DOCUMENTS_PATH e la porta
-   ```
+| File | Quando |
+|---|---|
+| `docker-compose.yml` | non hai Ollama: viene installato insieme all'app |
+| `docker-compose.external-ollama.yml` | hai già Ollama sul NAS |
 
-3. Avvio:
+### Dall'App Store (consigliato)
 
-   ```bash
-   docker compose pull
-   docker compose up -d
-   ```
+App Store → *Custom Install* → incolla il contenuto del file scelto. Icona,
+titolo, categoria e link della dashboard arrivano dai metadati `x-casaos`.
 
-   Il servizio `ollama-pull` scarica `llama3.2` e `nomic-embed-text` al primo
-   avvio (alcuni GB) e poi termina. Segui l'avanzamento con
-   `docker compose logs -f ollama-pull`.
+> **Niente `${VARIABILI}` nei compose.** Il parser dell'App Store non supporta
+> l'interpolazione con default e risponde
+> `invalid interpolation format ... You may need to escape any $ with another $`.
+> Per questo i valori sono scritti in chiaro. Se cambi qualcosa, restano in
+> chiaro.
 
-4. Apri `http://<ip-del-nas>:8088`.
+Cosa modificare prima di incollare, se i tuoi percorsi differiscono:
 
-Il package è pubblico: nessun `docker login` necessario sul NAS.
+- `- /DATA/Documents:/documents:ro` → la cartella da indicizzare
+- `- "8088:8000"` → la porta della Web UI
+- `LLM_MODEL` / `EMBED_MODEL` → i modelli da usare
 
-### Farla comparire nella dashboard Zima
+### Da riga di comando
 
-Zima OS legge i blocchi `x-casaos`. Due strade:
+```bash
+git clone https://github.com/Gigiomiccio425/ai-doc-assistant.git
+cd ai-doc-assistant
+nano docker-compose.yml      # percorsi, porta, modelli
+docker compose pull && docker compose up -d
+```
 
-- **Import da UI:** App Store → *Custom Install* → incolla il contenuto di
-  `docker-compose.yml`. Icona, titolo e link vengono presi dai metadati.
-- **Manuale:** dopo `docker compose up -d`, il container compare tra le app; il
-  campo `icon` punta a un PNG pubblico — sostituiscilo con un tuo file, ad
-  esempio `icon: http://<ip-del-nas>:8088/static/icon.svg` (l'icona SVG è già
-  servita dall'app).
+Con `docker-compose.yml` il servizio `ollama-pull` scarica `llama3.2` e
+`nomic-embed-text` al primo avvio (alcuni GB) e poi termina:
+`docker compose logs -f ollama-pull` per seguirlo.
+
+Poi apri `http://<ip-del-nas>:8088`. Il package è pubblico, nessun
+`docker login` necessario.
+
+Il campo `icon` punta a un PNG pubblico su GitHub. Puoi sostituirlo con l'icona
+servita dall'app stessa: `icon: http://<ip-del-nas>:8088/static/icon.svg`.
 
 ### Se Ollama è già installato
 
@@ -127,7 +129,8 @@ docker compose -f docker-compose.external-ollama.yml up -d
 Il default `OLLAMA_URL=http://host.docker.internal:11434` funziona sia con
 Ollama nativo sull'host sia con Ollama in un container che pubblica la porta
 11434 — l'`extra_hosts: host-gateway` nel compose fa risolvere quel nome
-all'host anche su Linux. In alternativa metti l'IP del NAS nel `.env`.
+all'host anche su Linux. In alternativa scrivi l'IP del NAS al posto di
+`host.docker.internal`.
 
 **Ollama deve ascoltare su `0.0.0.0`**, non solo su `127.0.0.1`, altrimenti dal
 container non è raggiungibile. Verifica dall'host:
@@ -183,7 +186,7 @@ di PDF l'operazione richiede tempo.
 **Le variabili d'ambiente valgono solo al primo avvio.** `OLLAMA_URL`,
 `LLM_MODEL` ed `EMBED_MODEL` sono i valori iniziali: appena salvi qualcosa dalle
 impostazioni della UI, l'app scrive `/data/settings.json` e da quel momento è
-quel file a comandare. Se cambi la variabile nel `.env` e non vedi effetto,
+quel file a comandare. Se cambi la variabile nel compose e non vedi effetto,
 modificala dalla UI oppure cancella `settings.json` e riavvia il container.
 
 **PDF scansionati.** Senza livello di testo non si estrae nulla: il documento

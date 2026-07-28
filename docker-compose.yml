@@ -1,32 +1,43 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Assistente AI Locale per Documenti - con container Ollama incluso.
+#
+# Nessuna variabile ${...}: il parser dell'App Store di ZimaOS/CasaOS non
+# supporta l'interpolazione con default e rifiuta il file. I valori sono
+# letterali: modificali direttamente qui sotto se i tuoi percorsi differiscono.
+#
+# Da modificare, se serve:
+#   - riga volumes di app:  /DATA/Documents  -> la cartella da indicizzare
+#   - riga ports di app:    8088             -> la porta della Web UI
+#   - LLM_MODEL / EMBED_MODEL                -> i modelli da usare
+#
+# Se hai gia' Ollama installato usa docker-compose.external-ollama.yml.
+# ══════════════════════════════════════════════════════════════════════════════
+
 name: ai-doc-assistant
 
 services:
-  # ══════════════════════════════════════════════════════════════════════════
-  # App principale: Web UI + API RAG
-  # ══════════════════════════════════════════════════════════════════════════
+  # ── App principale: Web UI + API RAG ─────────────────────────────────────
   app:
-    # Versione pinnata: un aggiornamento non deve mai arrivare a sorpresa dopo
-    # un riavvio del NAS. Per aggiornare, cambia il tag e fai docker compose pull.
-    # Tag disponibili: X.Y.Z (release), X.Y, latest, main, sha-<commit>.
-    # Build locale: docker build -t ai-doc-assistant:local .
-    image: ghcr.io/gigiomiccio425/ai-doc-assistant:${APP_VERSION:-1.0.0}
+    # Versione pinnata: un riavvio del NAS non deve mai tirare giu' una build
+    # nuova a sorpresa. Per aggiornare, cambia il tag e fai docker compose pull.
+    image: ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.0
     container_name: ai-doc-assistant
     restart: unless-stopped
     ports:
-      - "${WEBUI_PORT:-8088}:8000"
+      - "8088:8000"
     environment:
-      OLLAMA_URL: "${OLLAMA_URL:-http://ollama:11434}"
-      LLM_MODEL: "${LLM_MODEL:-llama3.2}"
-      EMBED_MODEL: "${EMBED_MODEL:-nomic-embed-text}"
-      SCAN_ON_START: "${SCAN_ON_START:-true}"
+      OLLAMA_URL: "http://ollama:11434"
+      LLM_MODEL: "llama3.2"
+      EMBED_MODEL: "nomic-embed-text"
+      SCAN_ON_START: "true"
       DATA_DIR: /data
       DOCS_DIR: /documents
-      TZ: "${TZ:-Europe/Rome}"
+      TZ: "Europe/Rome"
     volumes:
       # Cartella del NAS da indicizzare. :ro = l'app non puo' toccare i tuoi file.
-      - ${DOCUMENTS_PATH:-/DATA/Documents}:/documents:ro
-      # Persistenza: ChromaDB, anagrafica SQLite, impostazioni, file caricati dalla UI.
-      - ${APPDATA_PATH:-/DATA/AppData/ai-doc-assistant}/data:/data
+      - /DATA/Documents:/documents:ro
+      # Persistenza: ChromaDB, anagrafica SQLite, impostazioni, file caricati.
+      - /DATA/AppData/ai-doc-assistant/data:/data
     depends_on:
       ollama:
         condition: service_healthy
@@ -72,22 +83,18 @@ services:
             en_us: "Vector DB, registry and uploaded files"
             it_it: "Vector DB, anagrafica e file caricati"
 
-  # ══════════════════════════════════════════════════════════════════════════
-  # Motore LLM. Se hai GIA' Ollama su Zima OS: cancella questo servizio,
-  # togli il blocco depends_on qui sopra e imposta
-  #   OLLAMA_URL=http://<ip-del-nas>:11434
-  # ══════════════════════════════════════════════════════════════════════════
+  # ── Motore LLM ────────────────────────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
     container_name: ai-doc-ollama
     restart: unless-stopped
     ports:
-      - "${OLLAMA_PORT:-11434}:11434"
+      - "11434:11434"
     environment:
       OLLAMA_KEEP_ALIVE: "15m"
       OLLAMA_MAX_LOADED_MODELS: "1"
     volumes:
-      - ${APPDATA_PATH:-/DATA/AppData/ai-doc-assistant}/ollama:/root/.ollama
+      - /DATA/AppData/ai-doc-assistant/ollama:/root/.ollama
     networks:
       - ai-net
     healthcheck:
@@ -117,9 +124,7 @@ services:
             en_us: "Downloaded models"
             it_it: "Modelli scaricati"
 
-  # ══════════════════════════════════════════════════════════════════════════
-  # Scarica i modelli al primo avvio, poi esce. Non riparte da solo.
-  # ══════════════════════════════════════════════════════════════════════════
+  # ── Scarica i modelli al primo avvio, poi esce. Non riparte da solo. ──────
   ollama-pull:
     image: ollama/ollama:latest
     container_name: ai-doc-ollama-pull
@@ -130,8 +135,7 @@ services:
     environment:
       OLLAMA_HOST: "http://ollama:11434"
     entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "ollama pull ${LLM_MODEL:-llama3.2} && ollama pull ${EMBED_MODEL:-nomic-embed-text}"
+    command: ["ollama pull llama3.2 && ollama pull nomic-embed-text"]
     networks:
       - ai-net
 
@@ -177,8 +181,8 @@ x-casaos:
   tips:
     before_install:
       en_us: >-
-        Set DOCUMENTS_PATH to the folder you want to index (default /DATA/Documents).
-        The first startup downloads the models: it may take several minutes.
+        The documents folder defaults to /DATA/Documents. The first startup
+        downloads the models: it may take several minutes.
       it_it: >-
-        Imposta DOCUMENTS_PATH sulla cartella da indicizzare (default /DATA/Documents).
-        Al primo avvio vengono scaricati i modelli: puo' richiedere diversi minuti.
+        La cartella dei documenti e' /DATA/Documents. Al primo avvio vengono
+        scaricati i modelli: puo' richiedere diversi minuti.

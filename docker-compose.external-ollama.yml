@@ -1,43 +1,57 @@
 # ══════════════════════════════════════════════════════════════════════════════
 # Variante per chi ha GIA' Ollama sul NAS (installazione nativa o container).
-# Avvia solo l'app: nessun modello viene scaricato di nuovo, nessuna GPU da
+# Avvia solo l'app: nessun modello scaricato di nuovo, nessuna GPU da
 # riassegnare, niente doppia copia dei pesi su disco.
 #
-#   docker compose -f docker-compose.external-ollama.yml up -d
+# Nessuna variabile ${...}: il parser dell'App Store di ZimaOS/CasaOS non
+# supporta l'interpolazione con default e rifiuta il file. I valori sono
+# letterali: modificali direttamente qui sotto se i tuoi percorsi differiscono.
 #
-# Requisito: Ollama deve ascoltare su 0.0.0.0, non solo su 127.0.0.1.
-# Verifica dall'host:  curl http://127.0.0.1:11434/api/version
+# Da modificare, se serve:
+#   - OLLAMA_URL          -> dove risponde il tuo Ollama
+#   - riga volumes        -> /DATA/Documents, la cartella da indicizzare
+#   - riga ports          -> 8088, la porta della Web UI
+#
+# Prerequisiti:
+#   1. Ollama in ascolto su 0.0.0.0, non solo su 127.0.0.1.
+#      Verifica dall'host:  curl http://127.0.0.1:11434/api/version
+#   2. Modelli gia' scaricati:
+#      ollama pull llama3.2 && ollama pull nomic-embed-text
+#
+# Da riga di comando:
+#   docker compose -f docker-compose.external-ollama.yml up -d
 # ══════════════════════════════════════════════════════════════════════════════
 
 name: ai-doc-assistant
 
 services:
   app:
-    image: ghcr.io/gigiomiccio425/ai-doc-assistant:${APP_VERSION:-1.0.0}
+    image: ghcr.io/gigiomiccio425/ai-doc-assistant:1.0.0
     container_name: ai-doc-assistant
     restart: unless-stopped
     ports:
-      - "${WEBUI_PORT:-8088}:8000"
+      - "8088:8000"
     environment:
-      # host.docker.internal viene risolto dall'extra_hosts qui sotto e punta
+      # host.docker.internal e' risolto dall'extra_hosts qui sotto e punta
       # all'host Zima: funziona sia con Ollama nativo sia con Ollama in un
       # container che pubblica la porta 11434.
-      OLLAMA_URL: "${OLLAMA_URL:-http://host.docker.internal:11434}"
-      LLM_MODEL: "${LLM_MODEL:-llama3.2}"
-      EMBED_MODEL: "${EMBED_MODEL:-nomic-embed-text}"
-      SCAN_ON_START: "${SCAN_ON_START:-true}"
+      # In alternativa metti l'IP del NAS: http://192.168.1.50:11434
+      OLLAMA_URL: "http://host.docker.internal:11434"
+      LLM_MODEL: "llama3.2"
+      EMBED_MODEL: "nomic-embed-text"
+      SCAN_ON_START: "true"
       DATA_DIR: /data
       DOCS_DIR: /documents
-      TZ: "${TZ:-Europe/Rome}"
+      TZ: "Europe/Rome"
     extra_hosts:
       # Su Linux host.docker.internal non esiste di default: host-gateway lo
-      # mappa sull'IP del gateway Docker.
+      # mappa sull'IP del gateway Docker, cioe' l'host.
       - "host.docker.internal:host-gateway"
     volumes:
       # Cartella del NAS da indicizzare. :ro = l'app non puo' toccare i tuoi file.
-      - ${DOCUMENTS_PATH:-/DATA/Documents}:/documents:ro
+      - /DATA/Documents:/documents:ro
       # Persistenza: ChromaDB, anagrafica SQLite, impostazioni, file caricati.
-      - ${APPDATA_PATH:-/DATA/AppData/ai-doc-assistant}/data:/data
+      - /DATA/AppData/ai-doc-assistant/data:/data
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 30s
@@ -47,7 +61,7 @@ services:
 
     # --- Alternativa: Ollama gira in un container che NON pubblica la porta ---
     # Collega l'app alla rete di quel container e usa il suo nome come host:
-    #   OLLAMA_URL=http://<nome-container-ollama>:11434
+    #   OLLAMA_URL: "http://<nome-container-ollama>:11434"
     # networks:
     #   - ollama-net
     #
@@ -125,9 +139,7 @@ x-casaos:
     before_install:
       en_us: >-
         Requires a running Ollama instance listening on 0.0.0.0 with the chat
-        and embedding models already pulled. Set DOCUMENTS_PATH to the folder
-        you want to index.
+        and embedding models already pulled.
       it_it: >-
         Richiede un'istanza Ollama gia' attiva in ascolto su 0.0.0.0, con i
-        modelli di chat ed embedding gia' scaricati. Imposta DOCUMENTS_PATH
-        sulla cartella da indicizzare.
+        modelli di chat ed embedding gia' scaricati.
